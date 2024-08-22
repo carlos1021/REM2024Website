@@ -1,36 +1,25 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
+/**
+ * Import function triggers from their respective submodules:
+ *
+ * const {onCall} = require("firebase-functions/v2/https");
+ * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
+ *
+ * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ */
 
-// Initialize Firebase Admin SDK
-admin.initializeApp();
+const {onRequest} = require("firebase-functions/v2/https");
+const logger = require("firebase-functions/logger");
 
-// Create an Express appconst app = express();
+// Create and deploy your first functions
+// https://firebase.google.com/docs/functions/get-started
 
-// Set up Multer for file uploadsconst upload = multer({
-    storage: multer.diskStorage({
-        destination: function (req, file, cb) {
-            cb(null, 'uploads/'); // Set the destination for uploaded files
-        },
-        filename: function (req, file, cb) {
-            cb(null, Date.now() + path.extname(file.originalname)); // Set the filename
-        }
+exports.helloWorld = onRequest((request, response) => {
+  logger.info("Hello logs!", {structuredData: true});
+  response.send("Hello from Firebase!");
 });
 
-// Middleware to handle multipart/form-data
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Route to handle file uploads
-app.post('/upload', upload.single('file'), (req, res) => {
-    if (req.file) {
-        console.log('File received:', req.file);
-        res.send(req.file.filename);
-    } else {
-        res.status(400).send('No file uploaded.');
-    }
-});
-
-// Export the Express app as a Firebase Functionexports.api = functions.https.onRequest(app);
+//  load up ChatGPT
+// tokenize our research paper into vectors
+// load up our vectorstore
+// generate a prompt

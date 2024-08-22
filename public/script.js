@@ -13,7 +13,7 @@ function uploadFile() {
     const formData = new FormData();
     formData.append('file', file);
   
-    fetch('YOUR_BACKEND_API_ENDPOINT', {  // Replace with your backend API endpoint
+    fetch('https://helloworld-2gfnx6j33q-uc.a.run.app', {  // Replace with your backend API endpoint
       method: 'POST',
       body: formData
     })
