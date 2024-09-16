@@ -253,7 +253,8 @@ def upload_pdf():
         max_characters=1000,
         new_after_n_chars=1500,
         combine_text_undre_n_chars=250,
-        strategy="hi_res"
+        strategy="hi_res",
+        hi_res_model_name="yolox"
     )
 
     # Extract and upload images to Firebase, then get the image URLs
