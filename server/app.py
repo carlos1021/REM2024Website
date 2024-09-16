@@ -29,6 +29,7 @@ import ssl
 from flask_cors import CORS
 import sys
 sys.setrecursionlimit(5000)  # Increase recursion limit to a higher value
+ssl._create_default_https_context = ssl._create_unverified_context
 
 
 # import os
