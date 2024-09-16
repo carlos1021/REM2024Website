@@ -31,7 +31,6 @@ from flask_cors import CORS
 # import openai
 
 app = Flask(__name__)
-CORS(app)
 CORS(app, resources={r"/*": {"origins": "https://rem2024-f429b.firebaseapp.com"}})
 
 nltk.download('punkt_tab')
