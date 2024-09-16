@@ -25,10 +25,13 @@ from PIL import Image
 import io
 import json
 import nltk
+import ssl
 from flask_cors import CORS
 
 # import os
 # import openai
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "https://rem2024-f429b.firebaseapp.com"}})
@@ -243,6 +246,8 @@ def upload_pdf():
 
     # Save the file locally
     file.save(pdf_file_path)
+
+
 
     # Process the PDF file (partition elements)
     print("Grabbing raw elements")
