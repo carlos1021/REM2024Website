@@ -8,12 +8,15 @@ function uploadFile() {
     return;
   }
 
+  // Clear previous messages and show loading text
+  policyBriefResult.innerHTML = '<p>Generating Policy Brief...</p>';
+
   // Create form data to send the file
   const formData = new FormData();
   formData.append('file', file);
 
   // Send the PDF file to the server using fetch API
-  fetch('https://your-server-endpoint.com/upload', {  // Replace with your actual server API endpoint
+  fetch('https://rem2024website.onrender.com/upload', {  // Your server API endpoint
     method: 'POST',
     body: formData
   })
@@ -33,7 +36,7 @@ function uploadFile() {
       a.click();
       a.remove();
 
-      // Clear the result section or show a success message
+      // Show success message
       policyBriefResult.innerHTML = '<p>Policy brief generated and downloaded successfully.</p>';
     })
     .catch(error => {

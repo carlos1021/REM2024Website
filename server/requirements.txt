@@ -30,6 +30,7 @@ filelock==3.16.0
 filetype==1.2.0
 firebase-admin==6.5.0
 Flask==3.0.3
+Flask-Cors==5.0.0
 flatbuffers==24.3.25
 fonttools==4.53.1
 frozenlist==1.4.1
@@ -100,6 +101,7 @@ pillow==10.4.0
 portalocker==2.10.1
 proto-plus==1.24.0
 protobuf==5.28.1
+psutil==6.0.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pybase64==1.4.0

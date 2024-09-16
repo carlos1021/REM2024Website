@@ -25,10 +25,13 @@ from PIL import Image
 import io
 import json
 import nltk
+from flask_cors import CORS
+
 # import os
 # import openai
 
 app = Flask(__name__)
+CORS(app)
 
 nltk.download('punkt_tab')
 nltk.download('averaged_perceptron_tagger_eng')

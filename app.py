@@ -1,3 +1,5 @@
+"""Locally-working version of server/app.py. You can ignore"""
+
 print("Program starting, grabbing imports ...")
 import os
 import openai
@@ -27,6 +29,8 @@ import fitz
 from PIL import Image
 import io
 import nltk
+import psutil
+import time
 # import os
 # import openai
 
@@ -395,3 +399,5 @@ def create_policy_brief_document(context, relevant_image_urls, output_path):
 output_path = './Policy_Brief.docx'
 create_policy_brief_document(context, relevant_image_urls, output_path)
 print(f"Document saved to {output_path}")
+
+
