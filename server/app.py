@@ -38,7 +38,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 # ssl._create_default_https_context = ssl._create_unverified_context
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "https://rem2024-f429b.firebaseapp.com"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 nltk.download('punkt_tab')
 nltk.download('averaged_perceptron_tagger_eng')
@@ -49,6 +49,8 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 firebase_key_base64 = os.getenv("FIREBASE_SERVICE_KEY")
 firebase_key_json = base64.b64decode(firebase_key_base64).decode('utf-8')
 firebase_service_account = json.loads(firebase_key_json)
+# with open("REM_Service_Account_Key.json") as f:
+#     firebase_service_account = json.load(f)
 
 print(f"Grabbed OpenAI API Key: {openai.api_key != None}")
 print(f"Grabbed Firebase Service Account Key: {openai.api_key != None}")
@@ -63,7 +65,6 @@ firebase_admin.initialize_app(cred, {
 })
 
 
-# Function to extract images from the PDF and upload them to Firebase
 def extract_images_from_pdf(pdf_file_path):
     pdf_document = fitz.open(pdf_file_path)
     image_urls = []
@@ -89,15 +90,19 @@ def extract_images_from_pdf(pdf_file_path):
 
             # Upload image to Firebase Storage
             image_filename = f"image_{page_num + 1}_{img_index + 1}.png"
-            blob = bucket.blob(f"extracted_images/{image_filename}")
+            blob = bucket.blob(image_filename)
             blob.upload_from_file(image_buffer, content_type="image/png")
 
+            # Make the file public
+            blob.make_public()
+
             # Get the public URL for the uploaded image
-            img_url = blob.generate_signed_url(expiration=3600)  # 1-hour URL expiration
+            img_url = blob.public_url  # This is a permanent, public URL
             image_urls.append(img_url)
 
     pdf_document.close()
     return image_urls
+
 
 # Function to generate text and table summaries using OpenAI
 def make_prompt(element):
@@ -139,6 +144,12 @@ def generate_text_summaries(texts, tables, summarize_texts=False):
 
 # Function to analyze an image URL with OpenAI
 def analyze_image(img_url):
+    print(f"Image URL: {img_url}")
+    print("")
+    print("")
+    print("")
+    print("")
+
     prompt = """You are an assistant tasked with summarizing images for retrieval. \
     These summaries will be embedded and used to retrieve the raw image. \
     Describe concisely the characteristics (shape, color), but do not infer what the image means. \
@@ -264,6 +275,7 @@ def upload_pdf():
         combine_text_undre_n_chars=250,
         strategy="hi_res",
     )
+    print(f"raw_elements successfully called: {raw_elements}")
 
     # Extract and upload images to Firebase, then get the image URLs
     image_urls = extract_images_from_pdf(pdf_file_path)
