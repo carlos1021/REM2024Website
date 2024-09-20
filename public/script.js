@@ -16,12 +16,8 @@ function uploadFile() {
   formData.append('file', file);
 
 
-//   fetch('http://127.0.0.1:8080/upload', {  // Local server API endpoint
-//     method: 'POST',
-//     body: formData
-// })
   // Send the PDF file to the server using fetch API
-  fetch('https://rem2024website.onrender.com/upload', {  // Your server API endpoint
+  fetch('http://localhost:8080/upload', {  // Your server API endpoint
     method: 'POST',
     body: formData
   })

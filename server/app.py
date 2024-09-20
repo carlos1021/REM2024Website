@@ -1,6 +1,5 @@
 print("Program starting, grabbing imports ...")
 
-from unstructured.partition.pdf import partition_pdf
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
@@ -17,7 +16,6 @@ from io import BytesIO
 import os
 import openai
 import pybase64 as base64
-# import PIL
 import firebase_admin
 from firebase_admin import credentials, storage
 import fitz
@@ -28,20 +26,15 @@ import nltk
 import ssl
 from flask_cors import CORS
 import sys
-sys.setrecursionlimit(5000)  # Increase recursion limit to a higher value
-ssl._create_default_https_context = ssl._create_unverified_context
-
-
-# import os
-# import openai
-
+# sys.setrecursionlimit(5000)  # Increase recursion limit to a higher value
 # ssl._create_default_https_context = ssl._create_unverified_context
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+allowed_origins = ['http://localhost:8000', 'https://rem2024-f429b.firebaseapp.com', 'https://rem2024-f429b.web.app']
+CORS(app, resources={r"/*": {"origins": allowed_origins}})
 
-nltk.download('punkt_tab')
-nltk.download('averaged_perceptron_tagger_eng')
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
 print("Imports complete")
 
@@ -65,15 +58,25 @@ firebase_admin.initialize_app(cred, {
 })
 
 
-def extract_images_from_pdf(pdf_file_path):
+def extract_images_and_text_from_pdf(pdf_file_path):
+    """
+    Extracts text and images from a PDF file using the Fitz (PyMuPDF) library.
+    """
     pdf_document = fitz.open(pdf_file_path)
     image_urls = []
+    text_content = []
     bucket = storage.bucket()
 
+    # Iterate through each page
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
-        image_list = page.get_images(full=True)
 
+        # Extract text
+        text = page.get_text("text")
+        text_content.append(text)
+
+        # Extract images
+        image_list = page.get_images(full=True)
         for img_index, img in enumerate(image_list):
             xref = img[0]
             base_image = pdf_document.extract_image(xref)
@@ -97,11 +100,35 @@ def extract_images_from_pdf(pdf_file_path):
             blob.make_public()
 
             # Get the public URL for the uploaded image
-            img_url = blob.public_url  # This is a permanent, public URL
+            img_url = blob.public_url
             image_urls.append(img_url)
 
     pdf_document.close()
-    return image_urls
+    return text_content, image_urls
+
+
+def process_text(text_content):
+    """
+    Simulates separation of tables and normal text. Fitz doesn't distinguish between them,
+    so we use some heuristics like text structure to identify potential table-like text.
+    """
+    tables, texts = [], []
+
+    for text in text_content:
+        if is_table_like(text):
+            tables.append(text)
+        else:
+            texts.append(text)
+
+    return texts, tables
+
+
+def is_table_like(text):
+    """
+    Heuristic to determine if a block of text is table-like.
+    If the text has lots of tabular structure (e.g., many lines and columns of numbers), it's likely a table.
+    """
+    return "\t" in text or " | " in text or "-----" in text
 
 
 # Function to generate text and table summaries using OpenAI
@@ -109,6 +136,7 @@ def make_prompt(element):
     return f"""You are an assistant tasked with summarizing tables and text from retrieval. \
     These summaries will be embedded and used to retrieve the raw text or table elements. \
     Give a concise summary of the table or text that is well optimized for retrieval. Table or text: {element}"""
+
 
 def generate_text_summaries(texts, tables, summarize_texts=False):
     text_summaries, table_summaries = [], []
@@ -142,12 +170,10 @@ def generate_text_summaries(texts, tables, summarize_texts=False):
 
     return text_summaries, table_summaries
 
+
 # Function to analyze an image URL with OpenAI
 def analyze_image(img_url):
     print(f"Image URL: {img_url}")
-    print("")
-    print("")
-    print("")
     print("")
 
     prompt = """You are an assistant tasked with summarizing images for retrieval. \
@@ -184,6 +210,7 @@ def analyze_image(img_url):
 
     return response.choices[0].message.content
 
+
 # Function to generate image summaries from Firebase URLs
 def generate_image_summaries(image_urls):
     image_summaries = []
@@ -191,6 +218,7 @@ def generate_image_summaries(image_urls):
         response = analyze_image(img_url)
         image_summaries.append(response)
     return image_summaries
+
 
 # Function to filter relevant images
 def filter_relevant_images(image_summaries, img_url_list):
@@ -230,6 +258,7 @@ def filter_relevant_images(image_summaries, img_url_list):
 
     return relevant_urls
 
+
 # Function to create a Word document
 def create_policy_brief_document(context, relevant_image_urls, output_path):
     """
@@ -249,58 +278,47 @@ def create_policy_brief_document(context, relevant_image_urls, output_path):
 
     doc.save(output_path)
 
+
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
+    print("Request received")  # Print when the request is received
+
     # Check if the request has the file
     if 'file' not in request.files:
+        print("No file provided in the request")  # Debug if no file is provided
         return jsonify({'error': 'No file provided'}), 400
 
     # Get the PDF file from the request
     file = request.files['file']
     pdf_file_path = './temp_pdf.pdf'  # Temporary storage for the uploaded PDF
+    print(f"File received: {file.filename}")  # Print the name of the received file
 
     # Save the file locally
     file.save(pdf_file_path)
+    print(f"File saved locally at {pdf_file_path}")  # Confirm file saved
 
+    # Extract text and images from PDF
+    text_content, image_urls = extract_images_and_text_from_pdf(pdf_file_path)
+    print(f"Extracted text content: {len(text_content)} pages")  # How many pages of text
+    print(f"Extracted image URLs: {image_urls}")  # Print the image URLs extracted
 
-
-    # Process the PDF file (partition elements)
-    print("Grabbing raw elements")
-    raw_elements = partition_pdf(
-        filename=pdf_file_path,
-        chunking_strategy="by_title",
-        infer_table_structure=True,
-        max_characters=1000,
-        new_after_n_chars=1500,
-        combine_text_undre_n_chars=250,
-        strategy="hi_res",
-    )
-    print(f"raw_elements successfully called: {raw_elements}")
-
-    # Extract and upload images to Firebase, then get the image URLs
-    image_urls = extract_images_from_pdf(pdf_file_path)
-
-    # Separate tables and text from raw elements
-    tables, texts = [], []
-    for element in raw_elements:
-        if "unstructured.documents.elements.Table" in str(type(element)):
-            tables.append(str(element))
-        elif "unstructured.documents.elements.CompositeElement" in str(type(element)):
-            texts.append(str(element))
-
-    print("Appended texts and tables to lists")
+    # Separate the text and tables
+    texts, tables = process_text(text_content)
+    print(f"Texts found: {len(texts)}, Tables found: {len(tables)}")  # Number of texts and tables found
 
     # Generate summaries for the extracted text and tables
     text_summaries, table_summaries = generate_text_summaries(texts, tables, summarize_texts=False)
+    print(f"Generated {len(text_summaries)} text summaries and {len(table_summaries)} table summaries")
 
     # Generate summaries for the extracted images
     image_summaries = generate_image_summaries(image_urls)
+    print(f"Generated {len(image_summaries)} image summaries")
 
     # Load Hugging Face embeddings and create the vectorstore
-    print("Loading in Hugging Face Embeddings")
+    print("Loading Hugging Face embeddings...")
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5", encode_kwargs={'normalize_embeddings': True})
+    
     documents = []
-
     for i, table in enumerate(tables):
         documents.append({"id": f"table_{i}", "text": table})
     for i, text in enumerate(texts):
@@ -308,12 +326,11 @@ def upload_pdf():
     for i, summary in enumerate(image_summaries):
         documents.append({"id": f"image_summary_{i}", "text": summary})
 
+    print(f"Documents prepared for vector store: {len(documents)}")
+
     doc_texts = [doc["text"] for doc in documents]
     vectorstore = FAISS.from_texts(doc_texts, embeddings)
     print("Vectorstore created")
-
-    document_store = {doc["id"]: doc["text"] for doc in documents}
-    print("Mapped IDs to Documents (Document Store)")
 
     retriever = vectorstore.as_retriever()
 
@@ -343,18 +360,19 @@ def upload_pdf():
 
     context = ""
     for group, question in questions.items():
+        print(f"Asking question: {question}")  # Print the question being asked
         response = chain.invoke({"context": context, "input": question})
         if response["answer"]:
             context += f"\n\nAnswer:{response['answer']}"
-            print(f"Group: {group}\nAnswer: {response['answer']}\n\n")
+            print(f"Group: {group}, Answer: {response['answer']}")
         else:
-            print(f"Group: {group}\nNo Information\n\n")
+            print(f"Group: {group}, No information found")
 
     print("Final Policy Brief:\n", context)
 
     # Filter relevant images
     relevant_image_urls = filter_relevant_images(image_summaries, image_urls)
-    print("Relevant Image URLs:", relevant_image_urls)
+    print(f"Relevant Image URLs: {relevant_image_urls}")
 
     # Create and save the policy brief document
     output_path = './Policy_Brief.docx'
@@ -363,10 +381,14 @@ def upload_pdf():
 
     # Clean up the temporary file
     os.remove(pdf_file_path)
+    print(f"Temporary PDF file {pdf_file_path} removed")
 
     # Send the .docx file back to the user
     return send_file(output_path, as_attachment=True, download_name='policy_brief.docx')
 
+
+
 # Run the Flask server
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
+
