@@ -8,13 +8,14 @@ function uploadFile() {
     return;
   }
 
-  policyBriefResult.innerHTML = '<p>Generating Policy Brief...</p>';
+  // Show loading message
+  policyBriefResult.innerHTML = '<p>Generating Policy Brief... Please wait.</p>';
 
   const formData = new FormData();
   formData.append('file', file);
 
-
-  fetch('https://rem2024website.onrender.com/upload', {  
+  // Send the PDF file to the server using the Render API endpoint
+  fetch('https://rem2024website.onrender.com/upload', {
     method: 'POST',
     body: formData
   })
