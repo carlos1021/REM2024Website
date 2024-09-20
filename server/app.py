@@ -29,6 +29,7 @@ import sys
 # sys.setrecursionlimit(5000)  # Increase recursion limit to a higher value
 # ssl._create_default_https_context = ssl._create_unverified_context
 
+app = Flask(__name__)
 CORS(app, origins=[
     "https://rem2024-f429b.firebaseapp.com", 
     "https://rem2024-f429b.web.app", 
@@ -211,7 +212,7 @@ def analyze_image(img_url):
             ],
             max_tokens=300,
             top_p=0.1,
-            timeout=30
+            timeout=30  # Add a timeout of 15 seconds
         )
         return response.choices[0].message.content
     except Exception as e:
