@@ -8,16 +8,13 @@ function uploadFile() {
     return;
   }
 
-  // Clear previous messages and show loading text
   policyBriefResult.innerHTML = '<p>Generating Policy Brief...</p>';
 
-  // Create form data to send the file
   const formData = new FormData();
   formData.append('file', file);
 
 
-  // Send the PDF file to the server using fetch API
-  fetch('http://localhost:8080/upload', {  // Your server API endpoint
+  fetch('https://rem2024website.onrender.com/upload', {  
     method: 'POST',
     body: formData
   })

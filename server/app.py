@@ -29,8 +29,14 @@ import sys
 # sys.setrecursionlimit(5000)  # Increase recursion limit to a higher value
 # ssl._create_default_https_context = ssl._create_unverified_context
 
-app = Flask(__name__)
-CORS(app, origins=['http://localhost:8000', 'https://rem2024-f429b.firebaseapp.com', 'https://rem2024-f429b.web.app'])
+CORS(app, origins=[
+    "https://rem2024-f429b.firebaseapp.com", 
+    "https://rem2024-f429b.web.app", 
+    "http://localhost:8000",
+    "https://rem2024website.onrender.com"
+],
+methods=["GET", "POST", "OPTIONS"],
+allow_headers=["Content-Type"])
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
@@ -38,11 +44,11 @@ nltk.download('averaged_perceptron_tagger')
 print("Imports complete")
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
-firebase_key_base64 = os.getenv("FIREBASE_SERVICE_KEY")
-firebase_key_json = base64.b64decode(firebase_key_base64).decode('utf-8')
-firebase_service_account = json.loads(firebase_key_json)
-# with open("REM_Service_Account_Key.json") as f:
-#     firebase_service_account = json.load(f)
+# firebase_key_base64 = os.getenv("FIREBASE_SERVICE_KEY")
+# firebase_key_json = base64.b64decode(firebase_key_base64).decode('utf-8')
+# firebase_service_account = json.loads(firebase_key_json)
+with open("REM_Service_Account_Key.json") as f:
+    firebase_service_account = json.load(f)
 
 print(f"Grabbed OpenAI API Key: {openai.api_key != None}")
 print(f"Grabbed Firebase Service Account Key: {openai.api_key != None}")
@@ -205,7 +211,7 @@ def analyze_image(img_url):
             ],
             max_tokens=300,
             top_p=0.1,
-            timeout=15  # Add a timeout of 15 seconds
+            timeout=30
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -246,7 +252,8 @@ def filter_relevant_images(image_summaries, img_url_list):
                 {"role": "user", "content": prompt}
             ],
             max_tokens=100,
-            top_p=0.1
+            top_p=0.1,
+            timeout=30
         )
 
         response_text = response.choices[0].message.content.strip()
