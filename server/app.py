@@ -30,8 +30,7 @@ import sys
 # ssl._create_default_https_context = ssl._create_unverified_context
 
 app = Flask(__name__)
-allowed_origins = ['http://localhost:8000', 'https://rem2024-f429b.firebaseapp.com', 'https://rem2024-f429b.web.app']
-CORS(app, resources={r"/*": {"origins": allowed_origins}})
+CORS(app, origins=['http://localhost:8000', 'https://rem2024-f429b.firebaseapp.com', 'https://rem2024-f429b.web.app'])
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
@@ -180,35 +179,38 @@ def analyze_image(img_url):
     These summaries will be embedded and used to retrieve the raw image. \
     Describe concisely the characteristics (shape, color), but do not infer what the image means. \
     Only describe the characteristics of the image you see."""
-
-    response = openai.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant."
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": img_url,
-                        }
-                    },
-                ],
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        max_tokens=300,
-        top_p=0.1
-    )
-
-    return response.choices[0].message.content
+    try:
+        response = openai.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": img_url,
+                            }
+                        },
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=300,
+            top_p=0.1,
+            timeout=15  # Add a timeout of 15 seconds
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error occurred during OpenAI API call: {e}")
+        return None
 
 
 # Function to generate image summaries from Firebase URLs
