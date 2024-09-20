@@ -45,11 +45,11 @@ nltk.download('averaged_perceptron_tagger')
 print("Imports complete")
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
-# firebase_key_base64 = os.getenv("FIREBASE_SERVICE_KEY")
-# firebase_key_json = base64.b64decode(firebase_key_base64).decode('utf-8')
-# firebase_service_account = json.loads(firebase_key_json)
-with open("REM_Service_Account_Key.json") as f:
-    firebase_service_account = json.load(f)
+firebase_key_base64 = os.getenv("FIREBASE_SERVICE_KEY")
+firebase_key_json = base64.b64decode(firebase_key_base64).decode('utf-8')
+firebase_service_account = json.loads(firebase_key_json)
+# with open("REM_Service_Account_Key.json") as f:
+#     firebase_service_account = json.load(f)
 
 print(f"Grabbed OpenAI API Key: {openai.api_key != None}")
 print(f"Grabbed Firebase Service Account Key: {openai.api_key != None}")
