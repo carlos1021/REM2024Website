@@ -34,7 +34,10 @@ CORS(app, origins=[
     "https://rem2024-f429b.firebaseapp.com", 
     "https://rem2024-f429b.web.app", 
     "http://localhost:8000",
-    "https://rem2024website.onrender.com"
+    "https://rem2024website.onrender.com",
+    "https://rem-2024.firebaseapp.com",
+    "https://rem-2024.web.app"
+
 ],
 methods=["GET", "POST", "OPTIONS"],
 allow_headers=["Content-Type"])
