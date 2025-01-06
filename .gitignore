@@ -9,6 +9,7 @@ firebase-debug.*.log*
 experiments/venv/
 experiments/data/
 extracted_images/
+server/.env
 # Firebase cache
 .firebase/
 

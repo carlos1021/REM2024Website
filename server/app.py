@@ -1,5 +1,4 @@
 print("Program starting, grabbing imports ...")
-
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
@@ -26,6 +25,10 @@ import nltk
 import ssl
 from flask_cors import CORS
 import sys
+import re
+# from dotenv import load_dotenv
+
+# load_dotenv()
 # sys.setrecursionlimit(5000)  # Increase recursion limit to a higher value
 # ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -33,7 +36,7 @@ app = Flask(__name__)
 CORS(app, origins=[
     "https://rem2024-f429b.firebaseapp.com", 
     "https://rem2024-f429b.web.app", 
-    "http://localhost:8000",
+    # "http://localhost:5000",
     "https://rem2024website.onrender.com",
     "https://rem-2024.firebaseapp.com",
     "https://rem-2024.web.app"
@@ -69,51 +72,99 @@ firebase_admin.initialize_app(cred, {
 
 def extract_images_and_text_from_pdf(pdf_file_path):
     """
-    Extracts text and images from a PDF file using the Fitz (PyMuPDF) library.
+    Extracts text and images from a PDF file using the Fitz (PyMuPDF) library,
+    captures multi-line figure/table captions, and removes security-sensitive data like IP addresses.
     """
     pdf_document = fitz.open(pdf_file_path)
     image_urls = []
     text_content = []
+    figure_table_captions = []
     bucket = storage.bucket()
+
+    # Regex to detect the start of a figure/table heading
+    title_pattern = re.compile(r'^(Fig(?:ure)?\.?|Table)\s*\d+(\.|:)?', re.IGNORECASE)
+    # Regex to detect lines containing IP addresses
+    ip_address_pattern = re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')
 
     # Iterate through each page
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
 
-        # Extract text
-        text = page.get_text("text")
-        text_content.append(text)
+        # Extract text from this page
+        page_text = page.get_text("text")
 
-        # Extract images
+        # Remove any lines containing IP addresses
+        filtered_lines = []
+        for line in page_text.split('\n'):
+            if not ip_address_pattern.search(line):  # Exclude lines with IP addresses
+                filtered_lines.append(line)
+
+        # Join filtered lines back into text
+        filtered_text = '\n'.join(filtered_lines)
+        text_content.append(filtered_text)
+
+        # Split text by lines for figure/table detection
+        lines = filtered_text.split('\n')
         image_list = page.get_images(full=True)
         for img_index, img in enumerate(image_list):
             xref = img[0]
             base_image = pdf_document.extract_image(xref)
             image_bytes = base_image["image"]
 
-            # Convert image to PNG format
-            image = Image.open(io.BytesIO(image_bytes))
-            image = image.convert("RGB")
+            # Convert image to PNG
+            image_pil = Image.open(io.BytesIO(image_bytes))
+            image_pil = image_pil.convert("RGB")
 
-            # Save image in memory to upload to Firebase
             image_buffer = io.BytesIO()
-            image.save(image_buffer, format="PNG")
+            image_pil.save(image_buffer, format="PNG")
             image_buffer.seek(0)
 
-            # Upload image to Firebase Storage
+            # Upload to Firebase
             image_filename = f"image_{page_num + 1}_{img_index + 1}.png"
             blob = bucket.blob(image_filename)
             blob.upload_from_file(image_buffer, content_type="image/png")
 
-            # Make the file public
             blob.make_public()
-
-            # Get the public URL for the uploaded image
             img_url = blob.public_url
             image_urls.append(img_url)
 
+        # ------------------------------------------
+        # Detect figure/table headings and collect multi-line captions
+        # ------------------------------------------
+        current_caption = None  # Accumulates lines for the "active" figure/table
+
+        for line in lines:
+            line_strip = line.strip()
+
+            # Check if this line starts a new figure/table caption
+            if title_pattern.match(line_strip):
+                # If we were already building a caption, finalize and store it
+                if current_caption:
+                    figure_table_captions.append(current_caption.strip())
+
+                # Start a new caption with the heading
+                current_caption = line_strip
+
+            else:
+                # If we're currently in a caption, keep appending lines until we
+                # detect the next figure/table heading or finish the page.
+                if current_caption is not None:
+                    # Decide on a stopping heuristic. For now:
+                    # If line is not blank, we'll assume it's a continuation.
+                    if line_strip:
+                        current_caption += " " + line_strip
+                    # If line is blank, you could choose to stop collecting,
+                    # but let's keep it simple and just ignore blank lines.
+
+        # End of the page: if there's a caption being built, store it
+        if current_caption:
+            figure_table_captions.append(current_caption.strip())
+            current_caption = None
+
     pdf_document.close()
-    return text_content, image_urls
+
+    # Return the filtered text, the image URLs, and the figure/table captions
+    return text_content, image_urls, figure_table_captions
 
 
 def process_text(text_content):
@@ -138,7 +189,6 @@ def is_table_like(text):
     If the text has lots of tabular structure (e.g., many lines and columns of numbers), it's likely a table.
     """
     return "\t" in text or " | " in text or "-----" in text
-
 
 # Function to generate text and table summaries using OpenAI
 def make_prompt(element):
@@ -271,21 +321,123 @@ def filter_relevant_images(image_summaries, img_url_list):
 
     return relevant_urls
 
+def generate_policy_brief_title(context):
+    """
+    Generates a short, policy-style title for the brief based on the final summarized context.
+    This title should reflect the main idea relevant for policymakers,
+    but should not be identical to the research paper's original title.
+    """
+    try:
+        response = openai.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a helpful assistant specializing in creating brief, policy-oriented titles. "
+                        "Avoid referencing 'research paper' directly. Provide a concise headline reflecting "
+                        "the main policy topic or insight relevant for decision-makers."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Given the following policy brief content, propose a concise yet descriptive title "
+                        "that captures the main idea relevant for policymakers:\n\n"
+                        f"{context}"
+                    )
+                }
+            ],
+            max_tokens=50,
+            temperature=0.7
+        )
+        # Extract and return the generated title
+        title = response.choices[0].message.content.strip()
+        return title
+    except Exception as e:
+        print(f"Error generating policy brief title: {e}")
+        # Fallback if OpenAI call fails
+        return "Policy Insights on Key Findings"
+
+def make_policy_brief_prompt(context, task):
+    """
+    Produces a prompt directing the LLM to write as if addressing policymakers,
+    avoiding references to 'the research paper' or 'the article' repeatedly.
+    """
+    return f"""
+    You are an expert assistant specialized in crafting authoritative policy briefs
+    from research findings. Present the information in a direct, policy-oriented voice,
+    avoiding repeated phrases like 'the research paper' or 'this paper.' Instead, 
+    summarize the insights in a neutral, informative manner suitable for policymakers.
+
+    Current policy brief content:
+    {context}
+
+    New task: {task}
+    """
 
 # Function to create a Word document
-def create_policy_brief_document(context, relevant_image_urls, output_path):
+def create_policy_brief_document(context, relevant_image_urls, output_path, title):
     """
-    Create a Word document with the policy brief text and relevant images.
+    Create a Word document with the dynamic title and policy brief text,
+    converting Markdown-style bold/italic formatting into Word styles.
     """
     doc = Document()
-    doc.add_heading('Policy Brief', level=1)
-    doc.add_paragraph(context)
+    doc.add_heading(title, level=1)
 
-    # Add each relevant image to the document
+    # Convert Markdown to Word paragraphs with bold/italic
+    # Simple approach: parse line by line, replace markdown tokens **...** and *...*
+    # For more robust handling, consider using python-markdown or a 3rd-party library.
+    lines = context.split('\n')
+    for line in lines:
+        # Handle subheadings based on Markdown heading syntax (###, ####, etc.)
+        if line.startswith('###'):
+            heading_level = line.count('#')  # Count the number of '#' to determine heading level
+            heading_text = line.lstrip('#').strip()  # Remove leading '#' and any extra spaces
+            doc.add_heading(heading_text, level=min(heading_level, 4))  # Word supports heading levels 1-4
+            continue
+
+        # For normal lines, we'll parse for bold (**...**) and italic (*...*)
+        p = doc.add_paragraph()
+        
+        # Parse each line for Markdown formatting tokens
+        while line:
+            bold_match = re.search(r'\*\*(.+?)\*\*', line)
+            italic_match = re.search(r'\*(.+?)\*', line)
+
+            # If no more Markdown tokens are found, add the remainder as plain text
+            if not bold_match and not italic_match:
+                p.add_run(line)
+                break
+
+            # Find which match occurs first in the line
+            matches = []
+            if bold_match:
+                matches.append(('bold', bold_match.start(), bold_match.end(), bold_match.group(1)))
+            if italic_match:
+                matches.append(('italic', italic_match.start(), italic_match.end(), italic_match.group(1)))
+
+            matches.sort(key=lambda x: x[1])  # Sort by start index
+            next_token = matches[0]  # Earliest match
+            style_type, start_idx, end_idx, text_inside = next_token
+
+            # Add text preceding the token as normal text
+            p.add_run(line[:start_idx])
+
+            # Add the token with style
+            run = p.add_run(text_inside)
+            if style_type == 'bold':
+                run.bold = True
+            elif style_type == 'italic':
+                run.italic = True
+
+            # Move past this token
+            line = line[end_idx:]
+    
+    # Insert each relevant image into the document
     for img_url in relevant_image_urls:
         response = requests.get(img_url)
         img_stream = BytesIO(response.content)
-
         doc.add_paragraph()
         doc.add_picture(img_stream, width=Inches(5.0))
 
@@ -294,110 +446,119 @@ def create_policy_brief_document(context, relevant_image_urls, output_path):
 
 @app.route('/upload', methods=['POST'])
 def upload_pdf():
-    print("Request received")  # Print when the request is received
+    print("Request received")
 
     # Check if the request has the file
     if 'file' not in request.files:
-        print("No file provided in the request")  # Debug if no file is provided
+        print("No file provided in the request")
         return jsonify({'error': 'No file provided'}), 400
 
     # Get the PDF file from the request
     file = request.files['file']
-    pdf_file_path = './temp_pdf.pdf'  # Temporary storage for the uploaded PDF
-    print(f"File received: {file.filename}")  # Print the name of the received file
+    pdf_file_path = './temp_pdf.pdf'
+    print(f"File received: {file.filename}")
 
     # Save the file locally
     file.save(pdf_file_path)
-    print(f"File saved locally at {pdf_file_path}")  # Confirm file saved
+    print(f"File saved locally at {pdf_file_path}")
 
-    # Extract text and images from PDF
-    text_content, image_urls = extract_images_and_text_from_pdf(pdf_file_path)
-    print(f"Extracted text content: {len(text_content)} pages")  # How many pages of text
-    print(f"Extracted image URLs: {image_urls}")  # Print the image URLs extracted
+    # --- Extract text, images, and figure/table titles from PDF ---
+    text_content, image_urls, figure_table_titles = extract_images_and_text_from_pdf(pdf_file_path)
+    
+    # figure_table_titles = extract_figure_table_titles(pdf_file_path)  # newly added
+    print(f"Extracted text content: {len(text_content)} pages")
+    print(f"Extracted image URLs: {image_urls}")
+    print(f"Extracted figure/table titles: {figure_table_titles}")
 
-    # Separate the text and tables
+    # --- Separate the text and tables ---
     texts, tables = process_text(text_content)
-    print(f"Texts found: {len(texts)}, Tables found: {len(tables)}")  # Number of texts and tables found
+    print(f"Texts found: {len(texts)}, Tables found: {len(tables)}")
 
-    # Generate summaries for the extracted text and tables
+    # --- Generate summaries for text/tables (optional) ---
     text_summaries, table_summaries = generate_text_summaries(texts, tables, summarize_texts=False)
     print(f"Generated {len(text_summaries)} text summaries and {len(table_summaries)} table summaries")
 
-    # Generate summaries for the extracted images
+    # --- Generate summaries for the extracted images ---
     image_summaries = generate_image_summaries(image_urls)
     print(f"Generated {len(image_summaries)} image summaries")
 
-    # Load Hugging Face embeddings and create the vectorstore
+    # --- Build vectorstore from text, tables, and image summaries ---
     print("Loading Hugging Face embeddings...")
     embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5", encode_kwargs={'normalize_embeddings': True})
-    
+
     documents = []
     for i, table in enumerate(tables):
         documents.append({"id": f"table_{i}", "text": table})
-    for i, text in enumerate(texts):
-        documents.append({"id": f"text_{i}", "text": text})
+    for i, text_ in enumerate(texts):
+        documents.append({"id": f"text_{i}", "text": text_})
     for i, summary in enumerate(image_summaries):
         documents.append({"id": f"image_summary_{i}", "text": summary})
 
     print(f"Documents prepared for vector store: {len(documents)}")
-
     doc_texts = [doc["text"] for doc in documents]
     vectorstore = FAISS.from_texts(doc_texts, embeddings)
     print("Vectorstore created")
 
     retriever = vectorstore.as_retriever()
 
-    # Set up the chain for LangChain responses
-    template = """
-    You are an expert assistant specialized in summarizing research papers into policy briefs.
-    Use the provided context to create one section of the comprehensive policy brief:
-
-    <context>
-    {context}
-    </context>
-
-    Task: {input}
-    """
-    prompt = ChatPromptTemplate.from_template(template)
-    doc_chain = create_stuff_documents_chain(llm, prompt)
+    # --- Create the LLM chain with a new 'policy' prompt approach ---
+    doc_chain = create_stuff_documents_chain(
+        llm,
+        ChatPromptTemplate.from_template(
+            "You are an expert assistant specialized in crafting policy briefs. {context}\n\nTask: {input}"
+        )
+    )
     chain = create_retrieval_chain(retriever, doc_chain)
 
-    # Process questions and generate policy brief
-    questions = {
-        "Group 1": "Given the research findings, craft an executive summary that highlights the most critical insights in 3-4 sentences.",
-        "Group 2": "Provide a detailed background on the issue addressed in the research paper in 3-4 sentences.",
-        "Group 3": "Identify and summarize the core research question and the associated problem discussed in the paper.",
-        "Group 4": "Outline the key statistical findings of the paper with 3-4 bullet points including specific numbers.",
-        "Group 5": "Summarize the conclusion and policy recommendations from the research paper."
-    }
+    # --- Define tasks to build continuous, non-Q&A style content ---
+    tasks = [
+        "Provide a concise executive summary (3-4 sentences) for policymakers.",
+        "Offer succinct background on the issue in a policy-oriented tone (3-4 sentences).",
+        "Summarize the main focus or objective of this body of work (avoid 'paper' references).",
+        "Highlight key numbers or statistics in bullet points (3-4 points).",
+        "Conclude with policy recommendations and final insights."
+    ]
 
+    # --- Build the final context for the policy brief, removing 'Answer:' and adjusting text ---
     context = ""
-    for group, question in questions.items():
-        print(f"Asking question: {question}")  # Print the question being asked
-        response = chain.invoke({"context": context, "input": question})
+    for task in tasks:
+        # Use our specialized make_policy_brief_prompt
+        custom_prompt = make_policy_brief_prompt(context, task)
+        response = chain.invoke({"context": context, "input": custom_prompt})
         if response["answer"]:
-            context += f"\n\nAnswer:{response['answer']}"
-            print(f"Group: {group}, Answer: {response['answer']}")
-        else:
-            print(f"Group: {group}, No information found")
+            cleaned_answer = response["answer"].replace("Answer:", "").replace("Answer", "")
+            context += f"\n\n{cleaned_answer}"
 
-    print("Final Policy Brief:\n", context)
+    print("Final concatenated policy brief content:\n", context)
 
-    # Filter relevant images
+    # --- Filter relevant images ---
     relevant_image_urls = filter_relevant_images(image_summaries, image_urls)
     print(f"Relevant Image URLs: {relevant_image_urls}")
 
-    # Create and save the policy brief document
+    # --- Generate a dynamic policy-style title ---
+    title = generate_policy_brief_title(context)
+    print(f"Dynamic policy brief title generated: {title}")
+
+    # --- Create and save the policy brief document ---
     output_path = './Policy_Brief.docx'
-    create_policy_brief_document(context, relevant_image_urls, output_path)
+    create_policy_brief_document(context, relevant_image_urls, output_path, title)
     print(f"Document saved to {output_path}")
 
-    # Clean up the temporary file
+    # --- Clean up the temporary PDF file ---
     os.remove(pdf_file_path)
     print(f"Temporary PDF file {pdf_file_path} removed")
 
-    # Send the .docx file back to the user
-    return send_file(output_path, as_attachment=True, download_name='policy_brief.docx')
+    # --- Read the .docx file into memory and return JSON with base64 data + figure/table titles ---
+    with open(output_path, 'rb') as f:
+        doc_bytes = f.read()
+
+    doc_b64 = base64.b64encode(doc_bytes).decode('utf-8')
+
+    return jsonify({
+        'doc_b64': doc_b64,
+        'file_name': 'policy_brief.docx',  # or you can rename dynamically
+        'titles': figure_table_titles
+    })
 
 
 
