@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Policy Pulse - Generate Policy Brief</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.5/socket.io.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #000000;
+            background-color: #e2ddbf; /* Tan background */
+        }
+        
+        header {
+            background-color: #09324d; /* Darkish Blue */
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        nav ul li {
+            display: inline;
+            margin-right: 20px;
+        }
+        
+        nav ul li a {
+            text-decoration: none;
+            color: #e2ddbf; /* Tan for links */
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        nav ul li a:hover {
+            color: #4c837b; /* Darkish Green on hover */
+        }
+        
+        /* Main container */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            padding-bottom: 80px; /* Space for footer */
+        }
+        
+        /* Title section */
+        .title-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .title-section h1 {
+            color: #09324d; /* Darkish Blue for heading */
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .title-section p {
+            font-size: 1.1em;
+            color: #000000;
+            margin-bottom: 20px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background-color: rgba(9, 50, 77, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #09324d;
+        }
+        
+        .sidebar h3 {
+            color: #09324d;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .sidebar h5 {
+            color: #4c837b;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        /* Session info */
+        .session-info {
+            background-color: rgba(76, 131, 123, 0.1);
+            border: 1px solid #4c837b;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Input groups */
+        .input-group {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #09324d;
+            border-radius: 3px 0 0 3px;
+            font-size: 14px;
+        }
+        
+        .input-group button {
+            background-color: #4c837b;
+            color: #e2ddbf;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 0 3px 3px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .input-group button:hover {
+            background-color: #09324d;
+        }
+        
+        /* Pipeline steps */
+        .pipeline-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .pipeline-step {
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #09324d;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .pipeline-step:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(9, 50, 77, 0.2);
+        }
+        
+        .pipeline-step.step-completed {
+            border-color: #4c837b;
+            background-color: rgba(76, 131, 123, 0.1);
+        }
+        
+        .pipeline-step.step-active {
+            border-color: #09324d;
+            background-color: rgba(9, 50, 77, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .step-header {
+            color: #09324d;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .step-content p {
+            color: #000000;
+            margin-bottom: 15px;
+            font-size: 1em;
+        }
+        
+        /* Buttons */
+        button, .btn {
+            background-color: #4c837b;
+            color: #e2ddbf;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        button:hover, .btn:hover {
+            background-color: #09324d;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* Form elements */
+        input[type="text"], input[type="file"], select {
+            padding: 8px;
+            border: 1px solid #09324d;
+            border-radius: 3px;
+            font-size: 14px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        /* Policy Brief Configuration */
+        .brief-config {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 2px solid #09324d;
+        }
+        
+        .brief-config h3 {
+            color: #09324d;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .config-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .config-section h5 {
+            color: #4c837b;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-group {
+            margin: 10px 0;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        /* Q&A Results */
+        .qa-results {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #4c837b;
+        }
+        
+        .qa-results h5 {
+            color: #09324d;
+            margin-bottom: 15px;
+        }
+        
+        /* Terminal */
+        .terminal-section {
+            margin-top: 30px;
+        }
+        
+        .terminal-section h5 {
+            color: #09324d;
+            margin-bottom: 10px;
+        }
+        
+        .terminal {
+            background-color: #ffffff;
+            color: #000000;
+            font-family: Arial, sans-serif;
+            height: 250px;
+            overflow-y: auto;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #09324d;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .terminal-line {
+            margin: 3px 0;
+            word-wrap: break-word;
+        }
+        
+        .log-info { color: #000000; }
+        .log-warning { color: #000000; }
+        .log-error { color: #000000; }
+        .log-progress { color: #000000; }
+        
+        /* Documents list */
+        .document-card {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #09324d;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        
+        /* Footer */
+        footer {
+            background-color: #09324d;
+            color: #e2ddbf;
+            text-align: center;
+            padding: 15px 0;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .config-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .pipeline-steps {
+                grid-template-columns: 1fr;
+            }
+            
+            .title-section h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#" onclick="window.location.reload()">Policy Pulse</a></li>
+                <li><a href="#" class="active">Generate</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="main-container">
+        <div class="title-section">
+            <h1>Generate Your Policy Brief</h1>
+            <p>Upload your research paper and let Policy Pulse generate a comprehensive policy brief using our AI-powered analysis pipeline.</p>
+            <p style="font-size: 0.9em;">
+                Policy Pulse is currently in beta and intended for research purposes only. 
+                Please note that runtime will vary based on server traffic and the size 
+                of the document being processed.
+            </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px;">
+            <!-- Sidebar -->
+            <div class="sidebar">
+
+                <h5>Load Existing Document</h5>
+                <div class="input-group">
+                    <input type="text" id="document-key-input" 
+                           placeholder="Paste document key here">
+                    <button onclick="loadDocumentByKey()">
+                        <i class="fas fa-key"></i> Load
+                    </button>
+                </div>
+
+                <h5>Active Documents</h5>
+                <div id="documents-list">
+                    <p style="color: #666; font-size: 0.9em;">No documents loaded</p>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div>
+                <!-- Pipeline Steps -->
+                <div class="pipeline-steps">
+                    <div class="pipeline-step step-pending" id="step-1">
+                        <div class="step-header">
+                            <i class="fas fa-upload"></i> Step 1: Document Upload
+                        </div>
+                        <div class="step-content">
+                            <p>Upload and process PDF research papers</p>
+                            <input type="file" id="file-input" accept=".pdf">
+                            <button onclick="uploadDocument()">
+                                <i class="fas fa-cloud-upload-alt"></i> Upload & Process
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pipeline-step step-pending" id="step-2">
+                        <div class="step-header">
+                            <i class="fas fa-search"></i> Step 2: Content Analysis
+                        </div>
+                        <div class="step-content">
+                            <p>Analyze document structure and create semantic chunks</p>
+                            <button onclick="analyzeContent()" disabled id="analyze-btn">
+                                <i class="fas fa-cogs"></i> Analyze Content
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pipeline-step step-pending" id="step-3">
+                        <div class="step-header">
+                            <i class="fas fa-database"></i> Step 3: Vector Embeddings
+                        </div>
+                        <div class="step-content">
+                            <p>Create searchable vector database with FAISS</p>
+                            <button onclick="createEmbeddings()" disabled id="embed-btn">
+                                <i class="fas fa-vector-square"></i> Create Embeddings
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pipeline-step step-pending" id="step-4">
+                        <div class="step-header">
+                            <i class="fas fa-question-circle"></i> Step 4: Q&A Interface
+                        </div>
+                        <div class="step-content">
+                            <p>Ask questions about your research document</p>
+                            <div class="input-group">
+                                <input type="text" id="question-input" 
+                                       placeholder="Ask a question...">
+                                <button onclick="askQuestion()" disabled id="ask-btn">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Policy Brief Generation -->
+                <div class="brief-config" id="step-5">
+                    <h3>
+                        <i class="fas fa-file-alt"></i> Step 5: Policy Brief Generation
+                    </h3>
+                    <div class="config-row">
+                        <div class="config-section">
+                            <h5>Brief Configuration</h5>
+                            <label>Title</label>
+                            <input type="text" id="brief-title" 
+                                   value="Evidence-Based Policy Recommendations">
+                            
+                            <label>Target Audience</label>
+                            <select id="brief-audience">
+                                <option value="Policy Makers">Policy Makers</option>
+                                <option value="Health Officials">Health Officials</option>
+                                <option value="Education Leaders">Education Leaders</option>
+                                <option value="Research Community">Research Community</option>
+                            </select>
+                            
+                            <label>Research Focus</label>
+                            <input type="text" id="brief-focus" 
+                                   placeholder="e.g., childhood development, health outcomes">
+                        </div>
+                        <div class="config-section">
+                            <h5>Formatting Options</h5>
+                            <label>Executive Summary Length</label>
+                            <select id="brief-length">
+                                <option value="short">Short (2-3 sentences)</option>
+                                <option value="medium" selected>Medium (1-2 paragraphs)</option>
+                                <option value="long">Long (2-3 paragraphs)</option>
+                            </select>
+                            
+                            <label>Output Format</label>
+                            <select id="brief-format">
+                                <option value="html" selected>HTML (Web)</option>
+                                <option value="docx">DOCX (Word)</option>
+                                <option value="json">JSON (Data)</option>
+                            </select>
+                            
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="include-charts" checked>
+                                <label for="include-charts">Include Charts</label>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="include-wordcloud" checked>
+                                <label for="include-wordcloud">Include Word Cloud</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="generateBrief()" disabled id="generate-btn">
+                        <i class="fas fa-magic"></i> Generate Policy Brief
+                    </button>
+                </div>
+
+                <!-- Q&A Results -->
+                <div class="qa-results" id="qa-results" style="display: none;">
+                    <h5>
+                        <i class="fas fa-comments"></i> Q&A Results
+                    </h5>
+                    <div id="qa-content">
+                    </div>
+                </div>
+
+                <!-- Status Terminal -->
+                <div class="terminal-section">
+                    <h5><i class="fas fa-terminal"></i> Processing Status</h5>
+                    <div class="terminal" id="terminal">
+                        <div class="terminal-line">Policy Pulse Terminal - Ready</div>
+                        <div class="terminal-line">Upload a document or load an existing one to begin...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Policy Pulse. All rights reserved.</p>
+    </footer>
+    <script>
+        // Global variables
+        let socket;
+        let currentDocumentKey = null;
+        let sessionId = null;
+
+        // Initialize WebSocket connection
+        function initSocket() {
+            socket = io();
+            
+            socket.on('connected', function(data) {
+                sessionId = data.session_id;
+                document.getElementById('session-id').textContent = sessionId;
+                addTerminalLine(`Connected to session: ${sessionId}`, 'info');
+            });
+
+            socket.on('status_update', function(data) {
+                addTerminalLine(`[${data.timestamp}] ${data.message}`, data.level);
+            });
+
+            socket.on('disconnect', function() {
+                addTerminalLine('Disconnected from server', 'error');
+            });
+        }
+
+        // Terminal functions
+        function addTerminalLine(message, level = 'info') {
+            const terminal = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = `terminal-line log-${level}`;
+            line.textContent = message;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Step functions
+        async function uploadDocument() {
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a PDF file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                setStepActive('step-1');
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentDocumentKey = result.document_key;
+                    setStepCompleted('step-1');
+                    enableStep('analyze-btn');
+                    addTerminalLine(`Document uploaded successfully! Key: ${currentDocumentKey}`, 'info');
+                    updateDocumentsList();
+                } else {
+                    addTerminalLine(`Upload failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`Upload error: ${error.message}`, 'error');
+            }
+        }
+
+        async function analyzeContent() {
+            if (!currentDocumentKey) return;
+
+            try {
+                setStepActive('step-2');
+                const response = await fetch(`/api/analyze/${currentDocumentKey}`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    setStepCompleted('step-2');
+                    enableStep('embed-btn');
+                    addTerminalLine('Content analysis completed!', 'info');
+                } else {
+                    addTerminalLine(`Analysis failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`Analysis error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createEmbeddings() {
+            if (!currentDocumentKey) return;
+
+            try {
+                setStepActive('step-3');
+                const response = await fetch(`/api/embed/${currentDocumentKey}`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    setStepCompleted('step-3');
+                    enableStep('ask-btn');
+                    enableStep('generate-btn');
+                    addTerminalLine('Vector embeddings created!', 'info');
+                } else {
+                    addTerminalLine(`Embedding failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`Embedding error: ${error.message}`, 'error');
+            }
+        }
+
+        async function askQuestion() {
+            const question = document.getElementById('question-input').value.trim();
+            if (!question || !currentDocumentKey) return;
+
+            try {
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        document_key: currentDocumentKey,
+                        use_hybrid: true,
+                        max_results: 5
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayQAResult(result);
+                    document.getElementById('question-input').value = '';
+                } else {
+                    addTerminalLine(`Question failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`Question error: ${error.message}`, 'error');
+            }
+        }
+
+        function displayQAResult(result) {
+            const qaResults = document.getElementById('qa-results');
+            const qaContent = document.getElementById('qa-content');
+            
+            qaContent.innerHTML = `
+                <div class="mb-3">
+                    <h6><strong>Question:</strong></h6>
+                    <p>${result.question}</p>
+                </div>
+                <div class="mb-3">
+                    <h6><strong>Answer:</strong></h6>
+                    <p>${result.answer}</p>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <small><strong>Confidence:</strong> ${(result.confidence_score * 100).toFixed(1)}%</small><br>
+                        <small><strong>Quality:</strong> ${result.quality_assessment}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <small><strong>Type:</strong> ${result.response_type}</small><br>
+                        <small><strong>Citations:</strong> ${result.citations.length}</small>
+                    </div>
+                </div>
+            `;
+            
+            qaResults.style.display = 'block';
+        }
+
+        async function generateBrief() {
+            if (!currentDocumentKey) return;
+
+            const config = {
+                title: document.getElementById('brief-title').value,
+                target_audience: document.getElementById('brief-audience').value,
+                research_focus: document.getElementById('brief-focus').value,
+                executive_length: document.getElementById('brief-length').value,
+                output_format: document.getElementById('brief-format').value,
+                include_charts: document.getElementById('include-charts').checked,
+                include_wordcloud: document.getElementById('include-wordcloud').checked
+            };
+
+            try {
+                setStepActive('step-5');
+                const response = await fetch('/api/generate-brief', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        document_key: currentDocumentKey,
+                        config: config
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    setStepCompleted('step-5');
+                    addTerminalLine(`Policy brief generated: ${result.filename}`, 'info');
+                    
+                    // Create download link
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = result.download_url;
+                    downloadLink.textContent = `Download ${result.filename}`;
+                    downloadLink.className = 'btn';
+                    downloadLink.style.marginLeft = '10px';
+                    downloadLink.style.backgroundColor = '#4c837b';
+                    document.getElementById('generate-btn').parentNode.appendChild(downloadLink);
+                } else {
+                    addTerminalLine(`Brief generation failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`Brief generation error: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadDocumentByKey() {
+            const documentKey = document.getElementById('document-key-input').value.trim();
+            if (!documentKey) return;
+
+            try {
+                const response = await fetch('/api/use-document-key', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        document_key: documentKey
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentDocumentKey = documentKey;
+                    addTerminalLine(`Document loaded: ${documentKey}`, 'info');
+                    
+                    // Enable appropriate steps based on loaded document info
+                    const docInfo = result.document_info;
+                    
+                    // Step 1 is always completed if document exists
+                    setStepCompleted('step-1');
+                    
+                    // Check for analysis data
+                    if (docInfo.analysis_result) {
+                        setStepCompleted('step-2');
+                        addTerminalLine(`✅ Found existing analysis data`, 'info');
+                    } else {
+                        enableStep('analyze-btn');
+                        addTerminalLine(`⚠️  No analysis found. Run Step 2 if needed.`, 'warning');
+                    }
+                    
+                    // Check for vector database
+                    if (docInfo.vector_database) {
+                        setStepCompleted('step-3');
+                        enableStep('ask-btn');
+                        enableStep('generate-btn');
+                        addTerminalLine(`✅ Found existing vector database`, 'info');
+                        addTerminalLine(`🎉 Ready for Q&A and Policy Brief generation!`, 'info');
+                    } else {
+                        enableStep('embed-btn');
+                        addTerminalLine(`⚠️  No vector database found. Run Step 3 to enable Q&A.`, 'warning');
+                    }
+                    
+                    updateDocumentsList();
+                    document.getElementById('document-key-input').value = '';
+                } else {
+                    addTerminalLine(`Failed to load document: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`Load error: ${error.message}`, 'error');
+            }
+        }
+
+        // UI Helper functions
+        function setStepActive(stepId) {
+            const step = document.getElementById(stepId);
+            step.className = step.className.replace(/step-\w+/, 'step-active');
+        }
+
+        function setStepCompleted(stepId) {
+            const step = document.getElementById(stepId);
+            step.className = step.className.replace(/step-\w+/, 'step-completed');
+        }
+
+        function enableStep(buttonId) {
+            const button = document.getElementById(buttonId);
+            button.disabled = false;
+        }
+
+        async function updateDocumentsList() {
+            try {
+                const response = await fetch('/api/documents');
+                const result = await response.json();
+                
+                const documentsList = document.getElementById('documents-list');
+                if (result.documents.length === 0) {
+                    documentsList.innerHTML = '<p style="color: #666; font-size: 0.9em;">No documents loaded</p>';
+                } else {
+                    documentsList.innerHTML = result.documents.map(doc => `
+                        <div class="document-card">
+                            <div style="font-weight: bold; margin-bottom: 5px;">${doc.filename}</div>
+                            <div style="color: #666; font-size: 0.8em; margin-bottom: 5px;">${doc.document_key.substring(0, 20)}...</div>
+                            <div style="font-size: 0.8em;">
+                                ${doc.has_analysis ? '✅' : '⏳'} Analysis
+                                ${doc.has_embeddings ? '✅' : '⏳'} Embeddings
+                                📋 ${doc.policy_briefs_count} Briefs
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to update documents list:', error);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initSocket();
+            updateDocumentsList();
+            
+            // Enable Enter key for question input
+            document.getElementById('question-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    askQuestion();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

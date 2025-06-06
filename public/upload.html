@@ -19,16 +19,20 @@
     </nav>
   </header>
 
-  <main>
+  <main> 
     <section class="upload-section">
       <h1>Generate Your Policy Brief</h1>
       <p>Upload your research paper below and let Policy Pulse generate a policy brief for you.</p>
-      <p style="font-size: 0.9em;">Policy Pulse is currently in beta and intended for research purposes only. Please note
-        that runtime will vary based on server traffic and the size of the document being processed.</p>
+      <p style="font-size: 0.9em;">
+        Policy Pulse is currently in beta and intended for research purposes only. 
+        Please note that runtime will vary based on server traffic and the size 
+        of the document being processed.
+      </p>
       <div class="upload-container">
         <input type="file" id="fileInput" accept=".pdf" />
         <button onclick="uploadFile()">Upload Research Paper</button>
       </div>
+      <!-- Container to display the result, including the download button and figure/table titles -->
       <div id="policyBriefResult"></div>
     </section>
   </main>

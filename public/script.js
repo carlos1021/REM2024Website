@@ -15,7 +15,7 @@ function uploadFile() {
   formData.append('file', file);
 
   // Send the PDF file to the server
-  fetch('http://127.0.0.1:8080/upload', {
+  fetch('https://rem2024website.onrender.com/upload', {
     method: 'POST',
     body: formData
   })
