@@ -35,7 +35,7 @@ except ImportError:
     pass
 
 # Import from our pipeline components
-from vector_embedder import VectorEmbedder, VectorDatabase, VectorSearchResult, load_vector_database
+from .vector_embedder import VectorEmbedder, VectorDatabase, VectorSearchResult, load_vector_database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

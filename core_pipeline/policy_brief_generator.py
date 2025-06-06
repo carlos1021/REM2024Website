@@ -56,7 +56,7 @@ except ImportError:
     pass
 
 # Import from our pipeline components
-from query_processor import QueryProcessor, ask_question, ResponseResult
+from .query_processor import QueryProcessor, ask_question, ResponseResult
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

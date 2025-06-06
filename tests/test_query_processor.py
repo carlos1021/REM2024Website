@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 # Add the core_pipeline directory to Python path
-sys.path.append(str(Path(__file__).parent))
+sys.path.append(str(Path(__file__).parent.parent))
 # Load environment variables
 try:
     from dotenv import load_dotenv

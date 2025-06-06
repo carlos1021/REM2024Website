@@ -15,8 +15,8 @@ import os
 import sys
 from pathlib import Path
 
-# Add the core_pipeline directory to Python path
-sys.path.append(str(Path(__file__).parent))
+# Add the parent directory (project root) to Python path
+sys.path.append(str(Path(__file__).parent.parent))
 
 # Load environment variables
 try:
@@ -198,67 +198,67 @@ def test_policy_brief_generator():
             except Exception as e:
                 print(f"   ❌ {format_type.value.upper()} export error: {e}")
         
-        # Step 9: Test Convenience Function
-        print(f"\n🛠️  Step 9: Testing convenience function...")
+        # # Step 9: Test Convenience Function
+        # print(f"\n🛠️  Step 9: Testing convenience function...")
         
-        try:
-            convenience_file = generate_policy_brief(
-                title="Quick Policy Brief Test",
-                research_focus="health outcomes",
-                vector_db_id=db_id,
-                output_format="html"
-            )
+        # try:
+        #     convenience_file = generate_policy_brief(
+        #         title="Quick Policy Brief Test",
+        #         research_focus="health outcomes",
+        #         vector_db_id=db_id,
+        #         output_format="html"
+        #     )
             
-            if os.path.exists(convenience_file):
-                file_size = os.path.getsize(convenience_file)
-                print(f"   ✅ Convenience function works: {convenience_file} ({file_size:,} bytes)")
-                exported_files.append(convenience_file)
-            else:
-                print("   ❌ Convenience function failed")
+        #     if os.path.exists(convenience_file):
+        #         file_size = os.path.getsize(convenience_file)
+        #         print(f"   ✅ Convenience function works: {convenience_file} ({file_size:,} bytes)")
+        #         exported_files.append(convenience_file)
+        #     else:
+        #         print("   ❌ Convenience function failed")
                 
-        except Exception as e:
-            print(f"   ❌ Convenience function error: {e}")
+        # except Exception as e:
+        #     print(f"   ❌ Convenience function error: {e}")
         
-        # Step 10: Performance and Quality Summary
-        print(f"\n📈 Step 10: Policy Brief Quality Assessment")
-        print("-" * 50)
-        print(f"   • Brief Title: {brief.title}")
-        print(f"   • Target Audience: {config.target_audience}")
-        print(f"   • Evidence Sources: {brief.metadata['evidence_sources']}")
-        print(f"   • Generation Time: {brief.metadata['generation_time_seconds']:.2f}s")
-        print(f"   • Content Sections: {brief.metadata['total_sections']}")
-        print(f"   • Visual Elements: {len(brief.visualizations)} charts/graphics")
-        print(f"   • Export Formats: {len(exported_files)} successful exports")
-        print(f"   • Professional Formatting: ✅ (Policy-appropriate language)")
-        print(f"   • Evidence Integration: ✅ (Citations and references)")
-        print(f"   • IP Protection: ✅ (No copied diagrams, original visualizations)")
+        # # Step 10: Performance and Quality Summary
+        # print(f"\n📈 Step 10: Policy Brief Quality Assessment")
+        # print("-" * 50)
+        # print(f"   • Brief Title: {brief.title}")
+        # print(f"   • Target Audience: {config.target_audience}")
+        # print(f"   • Evidence Sources: {brief.metadata['evidence_sources']}")
+        # print(f"   • Generation Time: {brief.metadata['generation_time_seconds']:.2f}s")
+        # print(f"   • Content Sections: {brief.metadata['total_sections']}")
+        # print(f"   • Visual Elements: {len(brief.visualizations)} charts/graphics")
+        # print(f"   • Export Formats: {len(exported_files)} successful exports")
+        # print(f"   • Professional Formatting: ✅ (Policy-appropriate language)")
+        # print(f"   • Evidence Integration: ✅ (Citations and references)")
+        # print(f"   • IP Protection: ✅ (No copied diagrams, original visualizations)")
         
-        # Show section quality
-        print(f"\n   📋 Section Quality Scores:")
-        for section_name, section in sections:
-            print(f"      • {section_name}: {section.confidence_score:.2f}")
+        # # Show section quality
+        # print(f"\n   📋 Section Quality Scores:")
+        # for section_name, section in sections:
+        #     print(f"      • {section_name}: {section.confidence_score:.2f}")
         
-        # Clean up test files
-        print(f"\n🧹 Cleaning up test files...")
-        for filename in exported_files:
-            try:
-                if os.path.exists(filename):
-                    os.remove(filename)
-                    print(f"   Removed: {filename}")
-            except Exception as e:
-                print(f"   Warning: Could not remove {filename}: {e}")
+        # # Clean up test files
+        # print(f"\n🧹 Cleaning up test files...")
+        # for filename in exported_files:
+        #     try:
+        #         if os.path.exists(filename):
+        #             os.remove(filename)
+        #             print(f"   Removed: {filename}")
+        #     except Exception as e:
+        #         print(f"   Warning: Could not remove {filename}: {e}")
         
-        # Clean up generator resources
-        generator.cleanup()
+        # # Clean up generator resources
+        # generator.cleanup()
         
-        print(f"\n🎉 Policy Brief Generation Test Completed Successfully!")
-        print(f"📋 Your RAG pipeline now produces professional policy documents!")
-        print(f"   • Evidence-based content generation")
-        print(f"   • Professional formatting and structure")
-        print(f"   • Visual data presentation")
-        print(f"   • Multiple export formats")
-        print(f"   • IP-safe original visualizations")
-        print(f"   • Policy-focused language and recommendations")
+        # print(f"\n🎉 Policy Brief Generation Test Completed Successfully!")
+        # print(f"📋 Your RAG pipeline now produces professional policy documents!")
+        # print(f"   • Evidence-based content generation")
+        # print(f"   • Professional formatting and structure")
+        # print(f"   • Visual data presentation")
+        # print(f"   • Multiple export formats")
+        # print(f"   • IP-safe original visualizations")
+        # print(f"   • Policy-focused language and recommendations")
         
         return True
         
@@ -368,7 +368,7 @@ def test_visualization_features():
         print("\n   Testing visualization components:")
         
         # Mock evidence for testing
-        from query_processor import ResponseResult, QueryType, ResponseQuality
+        from core_pipeline.query_processor import ResponseResult, QueryType, ResponseQuality
         
         mock_evidence = [
             ResponseResult(

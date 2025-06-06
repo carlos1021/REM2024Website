@@ -19,7 +19,7 @@ except ImportError:
     print("⚠️  python-dotenv not installed, using system environment variables only")
 
 # Add the current directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(str(Path(__file__).parent.parent))
 from core_pipeline.document_processor import DocumentProcessor, extract_images_and_text_from_pdf
 
 

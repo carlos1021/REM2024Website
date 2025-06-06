@@ -71,3 +71,6 @@ node_modules/
 
 # virtual environment
 /server/venv/
+
+
+tests/__pycache__/
